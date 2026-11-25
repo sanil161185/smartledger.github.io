@@ -18,13 +18,13 @@
   ],
   "icons": [
     {
-     "src": "https://cdn-icons-png.flaticon.com/512/5501/5501375.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/5501/5501375.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/5501/5501375.png",
+      "src": "./icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
