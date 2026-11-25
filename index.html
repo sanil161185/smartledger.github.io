@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-<link rel="manifest" href="manifest.json">
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Monthly Budget & Expense Ledger</title>
+  <link rel="manifest" href="manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -236,7 +237,7 @@
         <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300">
           <p class="font-medium text-white mb-1"><i class="fa-solid fa-shield-halved text-emerald-400 mr-1.5"></i> Play Store Policy Compliant</p>
           <p class="text-slate-400 leading-relaxed">
-            Uses standard Notification Access to capture transaction alerts from UPI & banking apps (GPay, PhonePe, Paytm, UBI, HDFC, SBI) without requiring restricted background SMS permissions.
+            Uses standard Notification Access to capture transaction alerts from UPI & banking apps without requiring restricted background SMS permissions.
           </p>
         </div>
 
@@ -318,8 +319,8 @@
     let currentMonth = "Nov";
     let activeFilter = "all";
 
-    // Cleaned-up Baseline Structure with all amounts initialized to 0 / empty
-    const initialCategories = [
+    // Clean baseline template
+    const defaultCategories = [
       {
         id: "fixed",
         name: "Fixed Monthly Expenses & EMIs",
@@ -328,7 +329,7 @@
         badgeColor: "bg-emerald-950 text-emerald-400 border-emerald-800",
         items: [
           { id: "f1", name: "Maid/ Domestic Help Salary", budget: 0, spent: 0, checked: false, notes: "Maid salary & domestic support", isSinking: false },
-          { id: "f2", name: "Grocery", budget: 0, spent: 0, checked: false, notes: "Monthly grocery & provisions", isSinking: false },
+          { id: "f2", name: "Grocery", budget: 0, spent: 0, checked: false, notes: "Monthly grocery provisions", isSinking: false },
           { id: "f3", name: "Premium Health/ Term Insurance", budget: 0, spent: 0, checked: false, notes: "Parents & self insurance premiums", isSinking: false },
           { id: "f4", name: "Monthly EMI", budget: 0, spent: 0, checked: false, notes: "Ongoing monthly running EMIs", isSinking: false }
         ]
@@ -374,8 +375,7 @@
       }
     ];
 
-    // Multi-month store (v7 completely empty amounts & clean headings)
-    const STORAGE_KEY = "smart_budget_ledger_data_v7";
+    const STORAGE_KEY = "smart_budget_v8_release";
     let appData = {
       salary: 0,
       months: {}
@@ -383,35 +383,49 @@
 
     let auditHistory = [];
 
-    // Load or initialize storage
+    // Bulletproof Storage Initialization
     function initData() {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try {
-          appData = JSON.parse(stored);
-        } catch (e) { console.error(e); }
+      appData = { salary: 0, months: {} };
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === "object") {
+            appData.salary = Number(parsed.salary) || 0;
+            if (parsed.months && typeof parsed.months === "object") {
+              appData.months = parsed.months;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Storage reset due to error:", e);
       }
 
-      // Initialize all 12 months if missing
+      // Ensure every month has the full category list
       MONTHS.forEach(m => {
-        if (!appData.months[m]) {
-          appData.months[m] = JSON.parse(JSON.stringify(initialCategories));
+        if (!appData.months[m] || !Array.isArray(appData.months[m]) || appData.months[m].length === 0) {
+          appData.months[m] = JSON.parse(JSON.stringify(defaultCategories));
         }
       });
 
-      const storedAudit = localStorage.getItem("smart_budget_audit_v7");
-      if (storedAudit) {
-        try { auditHistory = JSON.parse(storedAudit); } catch (e) {}
-      }
+      try {
+        const storedAudit = localStorage.getItem("smart_budget_audit_v8");
+        if (storedAudit) {
+          auditHistory = JSON.parse(storedAudit) || [];
+        }
+      } catch (e) { auditHistory = []; }
     }
 
     function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-      localStorage.setItem("smart_budget_audit_v7", JSON.stringify(auditHistory));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        localStorage.setItem("smart_budget_audit_v8", JSON.stringify(auditHistory));
+      } catch (e) { console.error("Save error:", e); }
     }
 
     function showToast(msg) {
       const t = document.getElementById("toast");
+      if (!t) return;
       document.getElementById("toastMsg").innerText = msg;
       t.classList.remove("translate-y-12", "opacity-0");
       setTimeout(() => {
@@ -422,6 +436,7 @@
     // Render Month Switcher
     function renderMonthTabs() {
       const container = document.getElementById("monthTabs");
+      if (!container) return;
       container.innerHTML = "";
       MONTHS.forEach(m => {
         const btn = document.createElement("button");
@@ -453,6 +468,7 @@
 
       Object.keys(btns).forEach(k => {
         const el = document.getElementById(btns[k]);
+        if (!el) return;
         if (k === filter) {
           el.className = "px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white shadow";
         } else {
@@ -465,8 +481,8 @@
 
     // Direct Editing of Total Budget
     function editTotalBudget() {
-      const categories = appData.months[currentMonth];
-      const currentTotal = categories.reduce((sum, cat) => sum + cat.items.reduce((s, i) => s + Number(i.budget || 0), 0), 0);
+      const categories = appData.months[currentMonth] || [];
+      const currentTotal = categories.reduce((sum, cat) => sum + (cat.items || []).reduce((s, i) => s + Number(i.budget || 0), 0), 0);
       
       const input = prompt("Enter New Total Monthly Budget (₹):", currentTotal === 0 ? "" : currentTotal);
       if (input === null) return;
@@ -479,16 +495,16 @@
       if (currentTotal > 0) {
         const ratio = newTotal / currentTotal;
         categories.forEach(cat => {
-          cat.items.forEach(item => {
+          (cat.items || []).forEach(item => {
             item.budget = Math.round(Number(item.budget || 0) * ratio);
           });
-          cat.budget = cat.items.reduce((s, i) => s + Number(i.budget || 0), 0);
+          cat.budget = (cat.items || []).reduce((s, i) => s + Number(i.budget || 0), 0);
         });
       } else {
-        const perCat = Math.round(newTotal / categories.length);
+        const perCat = Math.round(newTotal / (categories.length || 1));
         categories.forEach(cat => {
           cat.budget = perCat;
-          if (cat.items.length > 0) {
+          if (cat.items && cat.items.length > 0) {
             const perItem = Math.round(perCat / cat.items.length);
             cat.items.forEach(i => i.budget = perItem);
           }
@@ -503,9 +519,9 @@
 
     // Direct Editing of Overall Remaining Balance
     function editTotalRemainingBalance() {
-      const categories = appData.months[currentMonth];
-      const totalBudget = categories.reduce((sum, cat) => sum + cat.items.reduce((s, i) => s + Number(i.budget || 0), 0), 0);
-      const totalSpent = categories.reduce((sum, cat) => sum + cat.items.reduce((s, i) => s + Number(i.spent || 0), 0), 0);
+      const categories = appData.months[currentMonth] || [];
+      const totalBudget = categories.reduce((sum, cat) => sum + (cat.items || []).reduce((s, i) => s + Number(i.budget || 0), 0), 0);
+      const totalSpent = categories.reduce((sum, cat) => sum + (cat.items || []).reduce((s, i) => s + Number(i.spent || 0), 0), 0);
       const currentRemaining = totalBudget - totalSpent;
 
       const input = prompt("Enter Target Total Remaining Balance (₹):", currentRemaining === 0 ? "" : currentRemaining);
@@ -525,16 +541,16 @@
       if (totalBudget > 0) {
         const ratio = desiredBudget / totalBudget;
         categories.forEach(cat => {
-          cat.items.forEach(item => {
+          (cat.items || []).forEach(item => {
             item.budget = Math.round(Number(item.budget || 0) * ratio);
           });
-          cat.budget = cat.items.reduce((s, i) => s + Number(i.budget || 0), 0);
+          cat.budget = (cat.items || []).reduce((s, i) => s + Number(i.budget || 0), 0);
         });
       } else {
-        const perCat = Math.round(desiredBudget / categories.length);
+        const perCat = Math.round(desiredBudget / (categories.length || 1));
         categories.forEach(cat => {
           cat.budget = perCat;
-          if (cat.items.length > 0) {
+          if (cat.items && cat.items.length > 0) {
             const perItem = Math.round(perCat / cat.items.length);
             cat.items.forEach(i => i.budget = perItem);
           }
@@ -549,11 +565,11 @@
 
     // Direct Editing of a Category's Ledger Budget
     function editLedgerBudget(catId) {
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
 
-      const currentBudget = cat.items.reduce((s, i) => s + Number(i.budget || 0), 0);
+      const currentBudget = (cat.items || []).reduce((s, i) => s + Number(i.budget || 0), 0);
       const input = prompt(`Enter new Budget for ${cat.name} (₹):`, currentBudget === 0 ? "" : currentBudget);
       if (input === null) return;
       const newBudget = parseFloat(input);
@@ -564,10 +580,10 @@
 
       if (currentBudget > 0) {
         const ratio = newBudget / currentBudget;
-        cat.items.forEach(i => {
+        (cat.items || []).forEach(i => {
           i.budget = Math.round(Number(i.budget || 0) * ratio);
         });
-      } else if (cat.items.length > 0) {
+      } else if (cat.items && cat.items.length > 0) {
         const perItem = Math.round(newBudget / cat.items.length);
         cat.items.forEach(i => i.budget = perItem);
       }
@@ -581,12 +597,12 @@
 
     // Direct Editing of a Category's Ledger Remaining Balance
     function editLedgerBalance(catId) {
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
 
-      const catSpent = cat.items.reduce((s, i) => s + Number(i.spent || 0), 0);
-      const currentBal = cat.items.reduce((s, i) => s + Number(i.budget || 0), 0) - catSpent;
+      const catSpent = (cat.items || []).reduce((s, i) => s + Number(i.spent || 0), 0);
+      const currentBal = (cat.items || []).reduce((s, i) => s + Number(i.budget || 0), 0) - catSpent;
 
       const input = prompt(`Enter new Remaining Balance for ${cat.name} (₹):`, currentBal === 0 ? "" : currentBal);
       if (input === null) return;
@@ -602,13 +618,13 @@
         return;
       }
 
-      const currentBudget = cat.items.reduce((s, i) => s + Number(i.budget || 0), 0);
+      const currentBudget = (cat.items || []).reduce((s, i) => s + Number(i.budget || 0), 0);
       if (currentBudget > 0) {
         const ratio = newBudget / currentBudget;
-        cat.items.forEach(i => {
+        (cat.items || []).forEach(i => {
           i.budget = Math.round(Number(i.budget || 0) * ratio);
         });
-      } else if (cat.items.length > 0) {
+      } else if (cat.items && cat.items.length > 0) {
         const perItem = Math.round(newBudget / cat.items.length);
         cat.items.forEach(i => i.budget = perItem);
       }
@@ -620,18 +636,17 @@
       showToast(`${cat.name} balance set to ₹${targetBal.toLocaleString("en-IN")}`);
     }
 
-    // Update Totals and Donut Chart without losing input focus
+    // Update Totals and Donut Chart
     function updateKPIs() {
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       let totalBudget = 0;
       let totalSpent = 0;
-
       const catBalances = {};
 
       categories.forEach(cat => {
         let catB = 0;
         let catS = 0;
-        cat.items.forEach(i => {
+        (cat.items || []).forEach(i => {
           catB += Number(i.budget || 0);
           catS += Number(i.spent || 0);
         });
@@ -644,18 +659,24 @@
       const netSurplus = (appData.salary || 0) - totalSpent;
       const totalRemaining = Math.max(0, totalBudget - totalSpent);
 
-      document.getElementById("kpiSalary").innerText = "₹" + (appData.salary || 0).toLocaleString("en-IN");
-      document.getElementById("kpiBudget").innerText = "₹" + totalBudget.toLocaleString("en-IN");
-      document.getElementById("kpiSpent").innerText = "₹" + totalSpent.toLocaleString("en-IN");
-      document.getElementById("kpiSurplus").innerText = "₹" + netSurplus.toLocaleString("en-IN");
-      document.getElementById("kpiRemainingBudget").innerText = "₹" + totalRemaining.toLocaleString("en-IN");
+      const elSal = document.getElementById("kpiSalary");
+      const elBud = document.getElementById("kpiBudget");
+      const elSpn = document.getElementById("kpiSpent");
+      const elSur = document.getElementById("kpiSurplus");
+      const elRem = document.getElementById("kpiRemainingBudget");
+      const elPct = document.getElementById("kpiSpentPercent");
+
+      if (elSal) elSal.innerText = "₹" + (appData.salary || 0).toLocaleString("en-IN");
+      if (elBud) elBud.innerText = "₹" + totalBudget.toLocaleString("en-IN");
+      if (elSpn) elSpn.innerText = "₹" + totalSpent.toLocaleString("en-IN");
+      if (elSur) elSur.innerText = "₹" + netSurplus.toLocaleString("en-IN");
+      if (elRem) elRem.innerText = "₹" + totalRemaining.toLocaleString("en-IN");
 
       const pct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
-      document.getElementById("kpiSpentPercent").innerText = pct + "% consumed";
+      if (elPct) elPct.innerText = pct + "% consumed";
 
-      // Update Category Badges in view
       categories.forEach(cat => {
-        const catSpent = cat.items.reduce((s, i) => s + Number(i.spent || 0), 0);
+        const catSpent = (cat.items || []).reduce((s, i) => s + Number(i.spent || 0), 0);
         const catBal = cat.budget - catSpent;
         
         const badgeSpent = document.getElementById(`badge-spent-${cat.id}`);
@@ -675,7 +696,6 @@
         }
       });
 
-      // Update Donut Chart
       updateDonutChart(catBalances);
     }
 
@@ -686,10 +706,16 @@
       const sched = bals["scheduled"] || 0;
       const sum = fixed + invest + cards + sched;
 
-      document.getElementById("legFixed").innerText = "₹" + fixed.toLocaleString("en-IN");
-      document.getElementById("legInvest").innerText = "₹" + invest.toLocaleString("en-IN");
-      document.getElementById("legCards").innerText = "₹" + cards.toLocaleString("en-IN");
-      document.getElementById("legSched").innerText = "₹" + sched.toLocaleString("en-IN");
+      const lFix = document.getElementById("legFixed");
+      const lInv = document.getElementById("legInvest");
+      const lCrd = document.getElementById("legCards");
+      const lSch = document.getElementById("legSched");
+      const cVal = document.getElementById("pieCenterVal");
+
+      if (lFix) lFix.innerText = "₹" + fixed.toLocaleString("en-IN");
+      if (lInv) lInv.innerText = "₹" + invest.toLocaleString("en-IN");
+      if (lCrd) lCrd.innerText = "₹" + cards.toLocaleString("en-IN");
+      if (lSch) lSch.innerText = "₹" + sched.toLocaleString("en-IN");
 
       const cFixed = document.getElementById("pieFixed");
       const cInvest = document.getElementById("pieInvest");
@@ -697,11 +723,11 @@
       const cSched = document.getElementById("pieSched");
 
       if (sum === 0) {
-        document.getElementById("pieCenterVal").innerText = "₹0";
-        cFixed.setAttribute("stroke-dasharray", `0 100`);
-        cInvest.setAttribute("stroke-dasharray", `0 100`);
-        cCards.setAttribute("stroke-dasharray", `0 100`);
-        cSched.setAttribute("stroke-dasharray", `0 100`);
+        if (cVal) cVal.innerText = "₹0";
+        if (cFixed) cFixed.setAttribute("stroke-dasharray", `0 100`);
+        if (cInvest) cInvest.setAttribute("stroke-dasharray", `0 100`);
+        if (cCards) cCards.setAttribute("stroke-dasharray", `0 100`);
+        if (cSched) cSched.setAttribute("stroke-dasharray", `0 100`);
         return;
       }
 
@@ -710,32 +736,38 @@
       const pCards = (cards / sum) * 100;
       const pSched = (sched / sum) * 100;
 
-      cFixed.setAttribute("stroke-dasharray", `${pFixed} ${100 - pFixed}`);
-      cFixed.setAttribute("stroke-dashoffset", "0");
+      if (cFixed) {
+        cFixed.setAttribute("stroke-dasharray", `${pFixed} ${100 - pFixed}`);
+        cFixed.setAttribute("stroke-dashoffset", "0");
+      }
+      if (cInvest) {
+        cInvest.setAttribute("stroke-dasharray", `${pInvest} ${100 - pInvest}`);
+        cInvest.setAttribute("stroke-dashoffset", `-${pFixed}`);
+      }
+      if (cCards) {
+        cCards.setAttribute("stroke-dasharray", `${pCards} ${100 - pCards}`);
+        cCards.setAttribute("stroke-dashoffset", `-${pFixed + pInvest}`);
+      }
+      if (cSched) {
+        cSched.setAttribute("stroke-dasharray", `${pSched} ${100 - pSched}`);
+        cSched.setAttribute("stroke-dashoffset", `-${pFixed + pInvest + pCards}`);
+      }
 
-      cInvest.setAttribute("stroke-dasharray", `${pInvest} ${100 - pInvest}`);
-      cInvest.setAttribute("stroke-dashoffset", `-${pFixed}`);
-
-      cCards.setAttribute("stroke-dasharray", `${pCards} ${100 - pCards}`);
-      cCards.setAttribute("stroke-dashoffset", `-${pFixed + pInvest}`);
-
-      cSched.setAttribute("stroke-dasharray", `${pSched} ${100 - pSched}`);
-      cSched.setAttribute("stroke-dashoffset", `-${pFixed + pInvest + pCards}`);
-
-      document.getElementById("pieCenterVal").innerText = "₹" + (sum >= 1000 ? Math.round(sum / 1000) + "k" : sum);
+      if (cVal) cVal.innerText = "₹" + (sum >= 1000 ? Math.round(sum / 1000) + "k" : sum);
     }
 
     // Render Full Ledgers
     function renderLedgers() {
       const container = document.getElementById("ledgersContainer");
+      if (!container) return;
       container.innerHTML = "";
 
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
 
       categories.forEach(cat => {
         if (activeFilter !== "all" && activeFilter !== cat.id) return;
 
-        const catSpent = cat.items.reduce((acc, i) => acc + Number(i.spent || 0), 0);
+        const catSpent = (cat.items || []).reduce((acc, i) => acc + Number(i.spent || 0), 0);
         const catBal = cat.budget - catSpent;
         const catPct = cat.budget > 0 ? Math.min(100, Math.round((catSpent / cat.budget) * 100)) : 0;
 
@@ -750,12 +782,11 @@
                 <span class="w-3 h-3 rounded-full bg-${cat.color}-500 shadow-sm shadow-${cat.color}-500/50"></span>
                 <h2 class="text-base font-bold text-white tracking-tight">${cat.name}</h2>
               </div>
-              <p class="text-xs text-slate-400 mt-0.5">${cat.items.length} line items tracked</p>
+              <p class="text-xs text-slate-400 mt-0.5">${(cat.items || []).length} line items tracked</p>
             </div>
 
-            <!-- Category Balance Stats (Fully Clickable / Editable) -->
+            <!-- Category Balance Stats -->
             <div class="flex items-center gap-3">
-              <!-- Editable Ledger Budget -->
               <div class="bg-slate-800/80 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700/60 text-right cursor-pointer group transition" onclick="editLedgerBudget('${cat.id}')" title="Click to edit Ledger Budget">
                 <div class="flex items-center justify-end gap-1 text-[10px] text-slate-400 leading-tight">
                   <span>Ledger Budget</span>
@@ -764,13 +795,11 @@
                 <span class="text-xs font-semibold text-white group-hover:text-indigo-300" id="badge-budget-${cat.id}">₹${cat.budget.toLocaleString("en-IN")}</span>
               </div>
 
-              <!-- Ledger Spent -->
               <div class="bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700/60 text-right">
                 <span class="text-[10px] text-slate-400 block leading-tight">Ledger Spent</span>
                 <span class="text-xs font-semibold text-amber-400" id="badge-spent-${cat.id}">₹${catSpent.toLocaleString("en-IN")}</span>
               </div>
 
-              <!-- Editable Ledger Remaining Balance -->
               <div class="bg-slate-800/80 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700/60 text-right cursor-pointer group transition" onclick="editLedgerBalance('${cat.id}')" title="Click to edit Ledger Remaining Balance">
                 <div class="flex items-center justify-end gap-1 text-[10px] text-slate-400 leading-tight">
                   <span>Remaining Balance</span>
@@ -800,7 +829,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-800/60" id="tbody-${cat.id}">
-                ${cat.items.map(item => renderRowHTML(cat.id, item)).join("")}
+                ${(cat.items || []).map(item => renderRowHTML(cat.id, item)).join("")}
               </tbody>
             </table>
           </div>
@@ -826,12 +855,9 @@
       const bal = item.budget - item.spent;
       return `
         <tr class="hover:bg-slate-800/40 transition group" id="row-${item.id}">
-          <!-- Checkbox / Tick -->
           <td class="py-2.5 px-3 text-center">
             <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleCheck('${catId}', '${item.id}')" class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer">
           </td>
-
-          <!-- Item Name & Notes (Direct Click to Rename/Edit) -->
           <td class="py-2.5 px-4">
             <div class="flex items-center gap-1.5">
               <span class="font-medium text-white text-xs cursor-pointer hover:text-indigo-300 ${item.checked ? 'line-through text-slate-400' : ''}" onclick="renameItem('${catId}', '${item.id}')" title="Click to rename" id="name-txt-${item.id}">${item.name}</span>
@@ -840,32 +866,24 @@
             </div>
             ${item.notes ? `<span class="text-[10px] text-slate-400 block">${item.notes}</span>` : ''}
           </td>
-
-          <!-- Budget Input: Shows empty if 0 for clean typing -->
           <td class="py-2.5 px-3 text-right">
             <div class="flex items-center justify-end gap-1">
               <span class="text-slate-400">₹</span>
               <input type="number" inputmode="numeric" value="${item.budget === 0 ? '' : item.budget}" placeholder="0" oninput="handleBudgetChange('${catId}', '${item.id}', this.value)" class="w-20 bg-slate-800/60 border border-transparent hover:border-slate-700 focus:border-indigo-500 rounded px-1.5 py-1 text-right text-xs text-white font-medium focus:outline-none">
             </div>
           </td>
-
-          <!-- Spent Input: Numpad protected, zero scroll jumping -->
           <td class="py-2.5 px-3 text-right">
             <div class="flex items-center justify-end gap-1">
               <span class="text-slate-400">₹</span>
               <input type="number" inputmode="numeric" value="${item.spent === 0 ? '' : item.spent}" placeholder="0" oninput="handleSpentChange('${catId}', '${item.id}', this.value)" class="w-24 bg-slate-800 border border-slate-700/80 focus:border-amber-400 focus:bg-slate-800/90 rounded px-2 py-1 text-right text-xs text-amber-300 font-bold focus:outline-none shadow-inner">
             </div>
           </td>
-
-          <!-- Dynamic Item Balance (Clickable / Editable) -->
           <td class="py-2.5 px-3 text-right font-semibold">
             <div class="flex items-center justify-end gap-1 cursor-pointer group/bal" onclick="editItemBalance('${catId}', '${item.id}')" title="Click to edit balance directly">
               <span id="bal-${item.id}" class="${bal < 0 ? 'text-rose-400' : 'text-emerald-400'} group-hover/bal:underline">₹${bal.toLocaleString("en-IN")}</span>
               <i class="fa-solid fa-pen text-[9px] text-slate-500"></i>
             </div>
           </td>
-
-          <!-- Actions: Edit and Delete Buttons (Always Accessible) -->
           <td class="py-2.5 px-3 text-center">
             <div class="flex items-center justify-center gap-1.5">
               <button onclick="renameItem('${catId}', '${item.id}')" title="Rename item" class="text-slate-400 hover:text-indigo-400 text-xs p-1.5 rounded hover:bg-slate-800"><i class="fa-solid fa-pen"></i></button>
@@ -876,12 +894,11 @@
       `;
     }
 
-    // Direct, Non-Destructive Event Handlers (Preserves virtual keyboard & scroll)
     function handleSpentChange(catId, itemId, val) {
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
-      const item = cat.items.find(i => i.id === itemId);
+      const item = (cat.items || []).find(i => i.id === itemId);
       if (!item) return;
 
       const num = val === "" ? 0 : parseFloat(val);
@@ -900,10 +917,10 @@
     }
 
     function handleBudgetChange(catId, itemId, val) {
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
-      const item = cat.items.find(i => i.id === itemId);
+      const item = (cat.items || []).find(i => i.id === itemId);
       if (!item) return;
 
       const num = val === "" ? 0 : parseFloat(val);
@@ -920,12 +937,11 @@
       updateKPIs();
     }
 
-    // Direct edit of an individual item's balance
     function editItemBalance(catId, itemId) {
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
-      const item = cat.items.find(i => i.id === itemId);
+      const item = (cat.items || []).find(i => i.id === itemId);
       if (!item) return;
 
       const currentBal = item.budget - item.spent;
@@ -947,9 +963,11 @@
     }
 
     function toggleCheck(catId, itemId) {
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       const cat = categories.find(c => c.id === catId);
-      const item = cat.items.find(i => i.id === itemId);
+      if (!cat) return;
+      const item = (cat.items || []).find(i => i.id === itemId);
+      if (!item) return;
       item.checked = !item.checked;
       
       if (item.checked && item.spent === 0 && item.budget > 0) {
@@ -967,9 +985,11 @@
     }
 
     function renameItem(catId, itemId) {
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       const cat = categories.find(c => c.id === catId);
-      const item = cat.items.find(i => i.id === itemId);
+      if (!cat) return;
+      const item = (cat.items || []).find(i => i.id === itemId);
+      if (!item) return;
       const newName = prompt("Edit Subheading Name:", item.name);
       if (newName && newName.trim() !== "") {
         item.name = newName.trim();
@@ -984,14 +1004,15 @@
     }
 
     function deleteItem(catId, itemId) {
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       const cat = categories.find(c => c.id === catId);
-      const item = cat.items.find(i => i.id === itemId);
+      if (!cat) return;
+      const item = (cat.items || []).find(i => i.id === itemId);
       const itemName = item ? item.name : "line item";
 
       if (!confirm(`Are you sure you want to delete "${itemName}" from ${cat.name}?`)) return;
       
-      cat.items = cat.items.filter(i => i.id !== itemId);
+      cat.items = (cat.items || []).filter(i => i.id !== itemId);
       saveState();
       renderLedgers();
       updateKPIs();
@@ -999,9 +1020,10 @@
     }
 
     function markAllChecked(catId) {
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       const cat = categories.find(c => c.id === catId);
-      cat.items.forEach(i => {
+      if (!cat) return;
+      (cat.items || []).forEach(i => {
         i.checked = true;
         if (i.spent === 0 && i.budget > 0) i.spent = i.budget;
       });
@@ -1012,9 +1034,10 @@
     }
 
     function resetSpent(catId) {
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       const cat = categories.find(c => c.id === catId);
-      cat.items.forEach(i => {
+      if (!cat) return;
+      (cat.items || []).forEach(i => {
         i.spent = 0;
         i.checked = false;
       });
@@ -1035,7 +1058,6 @@
       }
     }
 
-    // Modal: Add Line / Subheading
     let targetCatForNew = "fixed";
     function openAddLineModal(catId) {
       targetCatForNew = catId || "fixed";
@@ -1063,7 +1085,7 @@
         return;
       }
 
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       const cat = categories.find(c => c.id === catId);
       if (cat) {
         cat.items.push({
@@ -1084,18 +1106,17 @@
       }
     }
 
-    // Sync Budgets Till Year-End
     function syncFutureMonths() {
       if (!confirm(`Apply the current ${currentMonth} budget structure and subheadings to all remaining months of the year?`)) return;
       
       const currentIdx = MONTHS.indexOf(currentMonth);
-      const snapshot = JSON.parse(JSON.stringify(appData.months[currentMonth]));
+      const snapshot = JSON.parse(JSON.stringify(appData.months[currentMonth] || []));
 
       for (let i = currentIdx + 1; i < MONTHS.length; i++) {
         const nextMonth = MONTHS[i];
         const freshCopy = JSON.parse(JSON.stringify(snapshot));
         freshCopy.forEach(cat => {
-          cat.items.forEach(item => {
+          (cat.items || []).forEach(item => {
             item.spent = 0;
             item.checked = false;
           });
@@ -1107,7 +1128,6 @@
       showToast("Synced structure through December!");
     }
 
-    // Notification Engine (Play Store Compliant)
     function openNotificationModal() {
       document.getElementById("notificationModal").classList.remove("hidden");
     }
@@ -1136,7 +1156,6 @@
       const amount = parseFloat(rawAmount.replace(/,/g, ''));
       const lower = text.toLowerCase();
 
-      // Check Salary
       if (lower.includes("salary") || (lower.includes("credited") && amount >= 50000)) {
         appData.salary = amount;
         saveState();
@@ -1156,7 +1175,6 @@
         return;
       }
 
-      // Keyword matchers
       let matchedItemName = null;
       if (lower.includes("grocery") || lower.includes("veggie") || lower.includes("fruit") || lower.includes("provision") || lower.includes("supermarket") || lower.includes("nature basket")) {
         matchedItemName = "Grocery";
@@ -1190,12 +1208,12 @@
         matchedItemName = "Recurring Deposits";
       }
 
-      const categories = appData.months[currentMonth];
+      const categories = appData.months[currentMonth] || [];
       let found = false;
 
       if (matchedItemName) {
         for (const cat of categories) {
-          const item = cat.items.find(i => i.name.toLowerCase().includes(matchedItemName.toLowerCase()));
+          const item = (cat.items || []).find(i => i.name.toLowerCase().includes(matchedItemName.toLowerCase()));
           if (item) {
             item.spent = (Number(item.spent) || 0) + amount;
             item.checked = true;
@@ -1226,9 +1244,9 @@
       }
     }
 
-    // Modal: Explosive View / Audit Log
     function openAuditModal() {
       const container = document.getElementById("auditList");
+      if (!container) return;
       container.innerHTML = "";
 
       if (auditHistory.length === 0) {
@@ -1247,7 +1265,7 @@
               <p class="text-[11px] text-slate-400 mt-1 italic">"${a.text}"</p>
             </div>
             <div class="text-right shrink-0 ml-3">
-              <span class="text-xs font-bold text-amber-400">₹${a.amount.toLocaleString("en-IN")}</span>
+              <span class="text-xs font-bold text-amber-400">₹${Number(a.amount || 0).toLocaleString("en-IN")}</span>
             </div>
           `;
           container.appendChild(row);
@@ -1269,14 +1287,19 @@
       showToast("Audit log cleared");
     }
 
-    // Initialize application on load
-    window.addEventListener("DOMContentLoaded", () => {
+    function startApp() {
       initData();
       renderMonthTabs();
       renderLedgers();
       updateKPIs();
-    });
-    <script>
+    }
+
+    window.addEventListener("DOMContentLoaded", startApp);
+    window.addEventListener("load", startApp);
+  </script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
@@ -1284,9 +1307,6 @@
           .catch((err) => console.log('Service Worker Failed', err));
       });
     }
-  </script>
-</body>
-</html>
   </script>
 </body>
 </html>
