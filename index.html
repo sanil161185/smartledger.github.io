@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Monthly Budget & Expense Ledger</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col pb-16">
+
+  <!-- Header & Month Bar -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-wallet text-sm"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-base md:text-lg tracking-tight text-white leading-none">Smart Ledger</h1>
+          <p class="text-[11px] text-slate-400 mt-0.5">Automated Multi-Head Budget Tracker</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2">
+        <button onclick="openNotificationModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/80 border border-emerald-700/60 text-emerald-300 text-xs font-medium hover:bg-emerald-900 transition">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Notifications</span>
+        </button>
+        <button onclick="openAuditModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-xs font-medium hover:bg-slate-700 transition">
+          <i class="fa-solid fa-list-check text-indigo-400"></i>
+          <span class="hidden sm:inline">Explosive View</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Month Selector -->
+    <div class="bg-slate-900/90 border-t border-slate-800/80 px-4 py-2">
+      <div class="max-w-6xl mx-auto flex items-center justify-between gap-2">
+        <div class="flex items-center gap-1 overflow-x-auto custom-scrollbar py-0.5" id="monthTabs"></div>
+        <button onclick="syncFutureMonths()" title="Update remaining budget till year-end" class="text-xs px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1 shrink-0">
+          <i class="fa-solid fa-arrows-rotate text-[10px] text-indigo-400"></i>
+          <span class="hidden md:inline">Sync till Dec</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-6xl mx-auto w-full px-4 pt-4 flex-1">
+
+    <!-- KPI Summary Card + Interactive Donut Chart -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-xl mb-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+        
+        <!-- Left: Metrics Grid -->
+        <div class="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <!-- Monthly Salary -->
+          <div class="bg-slate-800/70 border border-slate-700/60 rounded-xl p-3 relative group">
+            <div class="flex items-center justify-between text-slate-400 text-xs mb-1">
+              <span>Month's Salary</span>
+              <button onclick="editSalary()" title="Edit Month Salary" class="text-indigo-400 hover:text-indigo-300 text-xs p-0.5"><i class="fa-solid fa-pen"></i></button>
+            </div>
+            <div class="text-lg md:text-xl font-bold text-white tracking-tight cursor-pointer hover:text-indigo-300" onclick="editSalary()" id="kpiSalary">₹0</div>
+            <span class="text-[10px] text-emerald-400 flex items-center gap-1 mt-0.5">
+              <i class="fa-solid fa-building-columns"></i> Click to enter
+            </span>
+          </div>
+
+          <!-- Total Budget (Editable) -->
+          <div class="bg-slate-800/70 border border-slate-700/60 rounded-xl p-3 relative group">
+            <div class="flex items-center justify-between text-slate-400 text-xs mb-1">
+              <span>Total Budget</span>
+              <button onclick="editTotalBudget()" title="Edit Total Budget" class="text-indigo-400 hover:text-indigo-300 text-xs p-0.5"><i class="fa-solid fa-pen"></i></button>
+            </div>
+            <div class="text-lg md:text-xl font-bold text-slate-100 tracking-tight cursor-pointer hover:text-indigo-300" onclick="editTotalBudget()" id="kpiBudget">₹0</div>
+            <span class="text-[10px] text-slate-400 mt-0.5 block">Click to set total</span>
+          </div>
+
+          <!-- Total Spent -->
+          <div class="bg-slate-800/70 border border-slate-700/60 rounded-xl p-3">
+            <div class="text-slate-400 text-xs mb-1">Total Spent</div>
+            <div class="text-lg md:text-xl font-bold text-amber-400 tracking-tight" id="kpiSpent">₹0</div>
+            <span class="text-[10px] text-slate-400 mt-0.5 block" id="kpiSpentPercent">0% consumed</span>
+          </div>
+
+          <!-- Net Surplus / Savings Pool & Total Remaining Balance (Editable) -->
+          <div class="bg-indigo-950/40 border border-indigo-800/50 rounded-xl p-3 sm:col-span-3 flex items-center justify-between">
+            <div>
+              <div class="text-xs text-indigo-300 font-medium">Net Savings / Surplus Pool (Salary - Spends)</div>
+              <div class="text-xl md:text-2xl font-black text-emerald-400 tracking-tight" id="kpiSurplus">₹0</div>
+            </div>
+            <div class="text-right group relative cursor-pointer" onclick="editTotalRemainingBalance()" title="Click to adjust remaining balance">
+              <div class="flex items-center justify-end gap-1 text-slate-400 text-xs">
+                <span>Total Balance Remaining</span>
+                <button class="text-indigo-400 hover:text-indigo-300 text-[10px]"><i class="fa-solid fa-pen"></i></button>
+              </div>
+              <span class="text-base font-bold text-emerald-400 hover:underline" id="kpiRemainingBudget">₹0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Donut Chart Visualization of Remaining Balances -->
+        <div class="lg:col-span-5 flex items-center justify-center border-t lg:border-t-0 lg:border-l border-slate-800 pt-4 lg:pt-0 lg:pl-5">
+          <div class="flex items-center gap-4 w-full justify-around">
+            <div class="relative w-32 h-32 shrink-0">
+              <svg viewBox="0 0 36 36" class="w-full h-full -rotate-90">
+                <!-- Background track -->
+                <circle cx="18" cy="18" r="15.915" fill="none" stroke="#1e293b" stroke-width="4.5"></circle>
+                <!-- Segments -->
+                <circle id="pieFixed" cx="18" cy="18" r="15.915" fill="none" stroke="#10b981" stroke-width="4.5" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
+                <circle id="pieInvest" cx="18" cy="18" r="15.915" fill="none" stroke="#6366f1" stroke-width="4.5" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
+                <circle id="pieCards" cx="18" cy="18" r="15.915" fill="none" stroke="#8b5cf6" stroke-width="4.5" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
+                <circle id="pieSched" cx="18" cy="18" r="15.915" fill="none" stroke="#f59e0b" stroke-width="4.5" stroke-dasharray="0 100" stroke-dashoffset="0"></circle>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span class="text-[10px] text-slate-400 leading-none">Balance</span>
+                <span class="text-xs font-bold text-white mt-0.5" id="pieCenterVal">₹0</span>
+              </div>
+            </div>
+
+            <!-- Legend with click-to-edit ledger balances -->
+            <div class="space-y-1.5 text-[11px]">
+              <div class="flex items-center gap-2 cursor-pointer hover:bg-slate-800/60 px-1 py-0.5 rounded" onclick="editLedgerBalance('fixed')" title="Click to edit Fixed balance">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                <span class="text-slate-300">Fixed & EMIs: <b class="text-white hover:text-emerald-400" id="legFixed">₹0</b></span>
+                <i class="fa-solid fa-pen text-[9px] text-slate-500 ml-auto"></i>
+              </div>
+              <div class="flex items-center gap-2 cursor-pointer hover:bg-slate-800/60 px-1 py-0.5 rounded" onclick="editLedgerBalance('investments')" title="Click to edit Investments balance">
+                <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0"></span>
+                <span class="text-slate-300">Investments: <b class="text-white hover:text-indigo-400" id="legInvest">₹0</b></span>
+                <i class="fa-solid fa-pen text-[9px] text-slate-500 ml-auto"></i>
+              </div>
+              <div class="flex items-center gap-2 cursor-pointer hover:bg-slate-800/60 px-1 py-0.5 rounded" onclick="editLedgerBalance('cards')" title="Click to edit Cards balance">
+                <span class="w-2.5 h-2.5 rounded-full bg-violet-500 shrink-0"></span>
+                <span class="text-slate-300">Credit Cards: <b class="text-white hover:text-violet-400" id="legCards">₹0</b></span>
+                <i class="fa-solid fa-pen text-[9px] text-slate-500 ml-auto"></i>
+              </div>
+              <div class="flex items-center gap-2 cursor-pointer hover:bg-slate-800/60 px-1 py-0.5 rounded" onclick="editLedgerBalance('scheduled')" title="Click to edit Sinking & Scheduled balance">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
+                <span class="text-slate-300">Sinking & Sched: <b class="text-white hover:text-amber-400" id="legSched">₹0</b></span>
+                <i class="fa-solid fa-pen text-[9px] text-slate-500 ml-auto"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Category Filter Tabs -->
+    <div class="flex items-center gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+      <button onclick="setCategoryFilter('all')" id="btnFilterAll" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white shadow">All 4 Ledgers</button>
+      <button onclick="setCategoryFilter('fixed')" id="btnFilterFixed" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700">Fixed & EMIs</button>
+      <button onclick="setCategoryFilter('investments')" id="btnFilterInvestments" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700">Investments</button>
+      <button onclick="setCategoryFilter('cards')" id="btnFilterCards" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700">Credit Cards</button>
+      <button onclick="setCategoryFilter('scheduled')" id="btnFilterScheduled" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700">Scheduled & Sinking</button>
+    </div>
+
+    <!-- Ledgers Container -->
+    <div class="space-y-6" id="ledgersContainer"></div>
+
+  </main>
+
+  <!-- Add Line Modal -->
+  <div id="addLineModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-plus-circle text-indigo-400"></i>
+          <span>Add New Subheading / Line</span>
+        </h3>
+        <button onclick="closeAddLineModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="space-y-4 pt-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Subheading Name</label>
+          <input type="text" id="newLineName" placeholder="e.g. SBI Credit Card, Gym membership" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Monthly Budget (₹)</label>
+            <input type="number" inputmode="numeric" id="newLineBudget" placeholder="0" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Target Ledger</label>
+            <select id="newLineCategory" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              <option value="fixed">Fixed & EMIs</option>
+              <option value="investments">Investments</option>
+              <option value="cards">Credit Card Expenses</option>
+              <option value="scheduled">Scheduled Expenses & Sinking Funds</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Notes / Description (Optional)</label>
+          <input type="text" id="newLineNotes" placeholder="e.g. Due 15th every month" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" id="newLineSinking" class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0">
+          <label for="newLineSinking" class="text-xs text-slate-300">Set as a Vault (Sinking fund reserve pot)</label>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-5 border-t border-slate-800 mt-5">
+        <button onclick="closeAddLineModal()" class="px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700">Cancel</button>
+        <button onclick="confirmAddLine()" class="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md">Add to Ledger</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Listener & Simulator Modal -->
+  <div id="notificationModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-5 shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
+          <h3 class="text-base font-bold text-white">Notification Listener Engine</h3>
+        </div>
+        <button onclick="closeNotificationModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="overflow-y-auto custom-scrollbar flex-1 py-4 space-y-4 text-xs">
+        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300">
+          <p class="font-medium text-white mb-1"><i class="fa-solid fa-shield-halved text-emerald-400 mr-1.5"></i> Play Store Policy Compliant</p>
+          <p class="text-slate-400 leading-relaxed">
+            Uses standard Notification Access to capture transaction alerts from UPI & banking apps (GPay, PhonePe, Paytm, UBI, HDFC, SBI) without requiring restricted background SMS permissions.
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Paste or Type Notification Alert</label>
+          <div class="flex gap-2">
+            <input type="text" id="notifInput" placeholder="e.g. Paid Rs.1,450 for Grocery via UPI..." class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+            <button onclick="handleProcessNotification()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 font-semibold text-white rounded-lg shadow shrink-0">Deduct</button>
+          </div>
+        </div>
+
+        <div>
+          <span class="text-slate-400 block mb-2 font-medium">Quick Test Presets (Click to Simulate):</span>
+          <div class="grid grid-cols-1 gap-2">
+            <button onclick="simulateAndParse('GPay', 'Paid Rs.1,450 for Grocery via UPI')" class="p-2.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 text-left text-slate-300 flex items-center justify-between">
+              <span><b>GPay:</b> Paid Rs.1,450 for Grocery</span>
+              <span class="text-emerald-400 font-semibold">Grocery</span>
+            </button>
+            <button onclick="simulateAndParse('Airtel/Jio', 'Paid Rs.2,500 for Broadband / Internet and Mobile bill via UPI')" class="p-2.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 text-left text-slate-300 flex items-center justify-between">
+              <span><b>Telecom:</b> Paid Rs.2,500 for Broadband & Mobile</span>
+              <span class="text-emerald-400 font-semibold">Broadband / Mobile</span>
+            </button>
+            <button onclick="simulateAndParse('HDFC Bank', 'Alert: Rs.6,000 debited for Indian Oil Fuel on 24-Nov')" class="p-2.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 text-left text-slate-300 flex items-center justify-between">
+              <span><b>HDFC:</b> Rs.6,000 debited for Fuel</span>
+              <span class="text-emerald-400 font-semibold">Fuel</span>
+            </button>
+            <button onclick="simulateAndParse('PhonePe', 'Payment of Rs.3,000 for Entertainment and Shopping')" class="p-2.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 text-left text-slate-300 flex items-center justify-between">
+              <span><b>PhonePe:</b> Rs.3,000 for Entertainment & Shopping</span>
+              <span class="text-emerald-400 font-semibold">Shopping / Outing</span>
+            </button>
+            <button onclick="simulateAndParse('Salary', 'Your A/C has been credited with Rs.2,15,000 towards Salary')" class="p-2.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-950/60 border border-emerald-800/60 text-left text-emerald-300 flex items-center justify-between">
+              <span><b>Salary Credit:</b> Rs.2,15,000 Credited</span>
+              <span class="text-emerald-400 font-semibold">Net Salary</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-800 flex justify-end">
+        <button onclick="closeNotificationModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 font-medium">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Explosive View / Audit Log Modal -->
+  <div id="auditModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl p-5 shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-indigo-400"></i>
+            <span>Explosive View: Auto-Deductions & Audit Log</span>
+          </h3>
+          <p class="text-[11px] text-slate-400 mt-0.5">Transparent log of every background deduction, SMS, or notification applied</p>
+        </div>
+        <button onclick="closeAuditModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="overflow-y-auto custom-scrollbar flex-1 py-4" id="auditList">
+        <!-- Rendered via JS -->
+      </div>
+
+      <div class="pt-3 border-t border-slate-800 flex items-center justify-between">
+        <button onclick="clearAuditLog()" class="text-xs text-rose-400 hover:text-rose-300 font-medium">Clear Audit History</button>
+        <button onclick="closeAuditModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-xs font-medium">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-800 border border-slate-700 text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl transform translate-y-12 opacity-0 transition duration-300 pointer-events-none flex items-center gap-2">
+    <i class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toastMsg">Action completed</span>
+  </div>
+
+  <!-- Core JavaScript Application Logic -->
+  <script>
+    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let currentMonth = "Nov";
+    let activeFilter = "all";
+
+    // Cleaned-up Baseline Structure with all amounts initialized to 0 / empty
+    const initialCategories = [
+      {
+        id: "fixed",
+        name: "Fixed Monthly Expenses & EMIs",
+        budget: 0,
+        color: "emerald",
+        badgeColor: "bg-emerald-950 text-emerald-400 border-emerald-800",
+        items: [
+          { id: "f1", name: "Maid/ Domestic Help Salary", budget: 0, spent: 0, checked: false, notes: "Maid salary & domestic support", isSinking: false },
+          { id: "f2", name: "Grocery", budget: 0, spent: 0, checked: false, notes: "Monthly grocery & provisions", isSinking: false },
+          { id: "f3", name: "Premium Health/ Term Insurance", budget: 0, spent: 0, checked: false, notes: "Parents & self insurance premiums", isSinking: false },
+          { id: "f4", name: "Monthly EMI", budget: 0, spent: 0, checked: false, notes: "Ongoing monthly running EMIs", isSinking: false }
+        ]
+      },
+      {
+        id: "investments",
+        name: "Investments & Savings",
+        budget: 0,
+        color: "indigo",
+        badgeColor: "bg-indigo-950 text-indigo-400 border-indigo-800",
+        items: [
+          { id: "i1", name: "Recurring Deposits", budget: 0, spent: 0, checked: false, notes: "Post Office / Bank Recurring Deposits", isSinking: false },
+          { id: "i2", name: "Family Portfolio Build Up", budget: 0, spent: 0, checked: false, notes: "Long-term family wealth & investments", isSinking: false },
+          { id: "i3", name: "SIP/ Mutual Funds", budget: 0, spent: 0, checked: false, notes: "Mutual fund SIP allocation", isSinking: false }
+        ]
+      },
+      {
+        id: "cards",
+        name: "Credit Card Expenses (UBI / Custom Card)",
+        budget: 0,
+        color: "violet",
+        badgeColor: "bg-violet-950 text-violet-400 border-violet-800",
+        items: [
+          { id: "c1", name: "Fuel", budget: 0, spent: 0, checked: false, notes: "Vehicle petrol / diesel", isSinking: false },
+          { id: "c2", name: "Broadband/ Internet and Mobile bill", budget: 0, spent: 0, checked: false, notes: "Broadband, fiber & mobile postpaids", isSinking: false },
+          { id: "c3", name: "Google Drive + YouTube + Netflix + Prime etc Subscriptions", budget: 0, spent: 0, checked: false, notes: "Cloud storage & digital streaming subs", isSinking: false },
+          { id: "c4", name: "Entertainment and Shopping", budget: 0, spent: 0, checked: false, notes: "Movies, dining out, outings & shopping", isSinking: false }
+        ]
+      },
+      {
+        id: "scheduled",
+        name: "Scheduled Expenses & Sinking Funds",
+        budget: 0,
+        color: "amber",
+        badgeColor: "bg-amber-950 text-amber-400 border-amber-800",
+        items: [
+          { id: "s1", name: "Car Servicing", budget: 0, spent: 0, checked: false, notes: "Maintenance sinking fund vault", isSinking: true, vaultAccumulated: 0 },
+          { id: "s2", name: "Electricity", budget: 0, spent: 0, checked: false, notes: "Monthly power utility vault", isSinking: true, vaultAccumulated: 0 },
+          { id: "s3", name: "House Maintenance", budget: 0, spent: 0, checked: false, notes: "Upkeep & repairs vault", isSinking: true, vaultAccumulated: 0 },
+          { id: "s4", name: "Children School Fees", budget: 0, spent: 0, checked: false, notes: "Education & tuition fees vault", isSinking: true, vaultAccumulated: 0 },
+          { id: "s5", name: "Holidays", budget: 0, spent: 0, checked: false, notes: "Vacation sinking fund pot", isSinking: true, vaultAccumulated: 0 }
+        ]
+      }
+    ];
+
+    // Multi-month store (v7 completely empty amounts & clean headings)
+    const STORAGE_KEY = "smart_budget_ledger_data_v7";
+    let appData = {
+      salary: 0,
+      months: {}
+    };
+
+    let auditHistory = [];
+
+    // Load or initialize storage
+    function initData() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          appData = JSON.parse(stored);
+        } catch (e) { console.error(e); }
+      }
+
+      // Initialize all 12 months if missing
+      MONTHS.forEach(m => {
+        if (!appData.months[m]) {
+          appData.months[m] = JSON.parse(JSON.stringify(initialCategories));
+        }
+      });
+
+      const storedAudit = localStorage.getItem("smart_budget_audit_v7");
+      if (storedAudit) {
+        try { auditHistory = JSON.parse(storedAudit); } catch (e) {}
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      localStorage.setItem("smart_budget_audit_v7", JSON.stringify(auditHistory));
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      document.getElementById("toastMsg").innerText = msg;
+      t.classList.remove("translate-y-12", "opacity-0");
+      setTimeout(() => {
+        t.classList.add("translate-y-12", "opacity-0");
+      }, 2500);
+    }
+
+    // Render Month Switcher
+    function renderMonthTabs() {
+      const container = document.getElementById("monthTabs");
+      container.innerHTML = "";
+      MONTHS.forEach(m => {
+        const btn = document.createElement("button");
+        const isActive = m === currentMonth;
+        btn.className = `px-3 py-1 rounded-md text-xs font-semibold shrink-0 transition ${
+          isActive ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+        }`;
+        btn.innerText = m;
+        btn.onclick = () => {
+          currentMonth = m;
+          renderMonthTabs();
+          renderLedgers();
+          updateKPIs();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    // Category Filter Handler
+    function setCategoryFilter(filter) {
+      activeFilter = filter;
+      const btns = {
+        all: "btnFilterAll",
+        fixed: "btnFilterFixed",
+        investments: "btnFilterInvestments",
+        cards: "btnFilterCards",
+        scheduled: "btnFilterScheduled"
+      };
+
+      Object.keys(btns).forEach(k => {
+        const el = document.getElementById(btns[k]);
+        if (k === filter) {
+          el.className = "px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white shadow";
+        } else {
+          el.className = "px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700";
+        }
+      });
+
+      renderLedgers();
+    }
+
+    // Direct Editing of Total Budget
+    function editTotalBudget() {
+      const categories = appData.months[currentMonth];
+      const currentTotal = categories.reduce((sum, cat) => sum + cat.items.reduce((s, i) => s + Number(i.budget || 0), 0), 0);
+      
+      const input = prompt("Enter New Total Monthly Budget (₹):", currentTotal === 0 ? "" : currentTotal);
+      if (input === null) return;
+      const newTotal = parseFloat(input);
+      if (isNaN(newTotal) || newTotal < 0) {
+        alert("Please enter a valid positive number.");
+        return;
+      }
+
+      if (currentTotal > 0) {
+        const ratio = newTotal / currentTotal;
+        categories.forEach(cat => {
+          cat.items.forEach(item => {
+            item.budget = Math.round(Number(item.budget || 0) * ratio);
+          });
+          cat.budget = cat.items.reduce((s, i) => s + Number(i.budget || 0), 0);
+        });
+      } else {
+        const perCat = Math.round(newTotal / categories.length);
+        categories.forEach(cat => {
+          cat.budget = perCat;
+          if (cat.items.length > 0) {
+            const perItem = Math.round(perCat / cat.items.length);
+            cat.items.forEach(i => i.budget = perItem);
+          }
+        });
+      }
+
+      saveState();
+      renderLedgers();
+      updateKPIs();
+      showToast(`Total Budget updated to ₹${newTotal.toLocaleString("en-IN")}`);
+    }
+
+    // Direct Editing of Overall Remaining Balance
+    function editTotalRemainingBalance() {
+      const categories = appData.months[currentMonth];
+      const totalBudget = categories.reduce((sum, cat) => sum + cat.items.reduce((s, i) => s + Number(i.budget || 0), 0), 0);
+      const totalSpent = categories.reduce((sum, cat) => sum + cat.items.reduce((s, i) => s + Number(i.spent || 0), 0), 0);
+      const currentRemaining = totalBudget - totalSpent;
+
+      const input = prompt("Enter Target Total Remaining Balance (₹):", currentRemaining === 0 ? "" : currentRemaining);
+      if (input === null) return;
+      const targetRemaining = parseFloat(input);
+      if (isNaN(targetRemaining)) {
+        alert("Please enter a valid number.");
+        return;
+      }
+
+      const desiredBudget = totalSpent + targetRemaining;
+      if (desiredBudget < 0) {
+        alert("Remaining balance cannot result in a negative total budget.");
+        return;
+      }
+
+      if (totalBudget > 0) {
+        const ratio = desiredBudget / totalBudget;
+        categories.forEach(cat => {
+          cat.items.forEach(item => {
+            item.budget = Math.round(Number(item.budget || 0) * ratio);
+          });
+          cat.budget = cat.items.reduce((s, i) => s + Number(i.budget || 0), 0);
+        });
+      } else {
+        const perCat = Math.round(desiredBudget / categories.length);
+        categories.forEach(cat => {
+          cat.budget = perCat;
+          if (cat.items.length > 0) {
+            const perItem = Math.round(perCat / cat.items.length);
+            cat.items.forEach(i => i.budget = perItem);
+          }
+        });
+      }
+
+      saveState();
+      renderLedgers();
+      updateKPIs();
+      showToast(`Total Remaining Balance set to ₹${targetRemaining.toLocaleString("en-IN")}`);
+    }
+
+    // Direct Editing of a Category's Ledger Budget
+    function editLedgerBudget(catId) {
+      const categories = appData.months[currentMonth];
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+
+      const currentBudget = cat.items.reduce((s, i) => s + Number(i.budget || 0), 0);
+      const input = prompt(`Enter new Budget for ${cat.name} (₹):`, currentBudget === 0 ? "" : currentBudget);
+      if (input === null) return;
+      const newBudget = parseFloat(input);
+      if (isNaN(newBudget) || newBudget < 0) {
+        alert("Please enter a valid positive number.");
+        return;
+      }
+
+      if (currentBudget > 0) {
+        const ratio = newBudget / currentBudget;
+        cat.items.forEach(i => {
+          i.budget = Math.round(Number(i.budget || 0) * ratio);
+        });
+      } else if (cat.items.length > 0) {
+        const perItem = Math.round(newBudget / cat.items.length);
+        cat.items.forEach(i => i.budget = perItem);
+      }
+      cat.budget = newBudget;
+
+      saveState();
+      renderLedgers();
+      updateKPIs();
+      showToast(`${cat.name} budget updated to ₹${newBudget.toLocaleString("en-IN")}`);
+    }
+
+    // Direct Editing of a Category's Ledger Remaining Balance
+    function editLedgerBalance(catId) {
+      const categories = appData.months[currentMonth];
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+
+      const catSpent = cat.items.reduce((s, i) => s + Number(i.spent || 0), 0);
+      const currentBal = cat.items.reduce((s, i) => s + Number(i.budget || 0), 0) - catSpent;
+
+      const input = prompt(`Enter new Remaining Balance for ${cat.name} (₹):`, currentBal === 0 ? "" : currentBal);
+      if (input === null) return;
+      const targetBal = parseFloat(input);
+      if (isNaN(targetBal)) {
+        alert("Please enter a valid number.");
+        return;
+      }
+
+      const newBudget = catSpent + targetBal;
+      if (newBudget < 0) {
+        alert("Balance cannot result in a negative category budget.");
+        return;
+      }
+
+      const currentBudget = cat.items.reduce((s, i) => s + Number(i.budget || 0), 0);
+      if (currentBudget > 0) {
+        const ratio = newBudget / currentBudget;
+        cat.items.forEach(i => {
+          i.budget = Math.round(Number(i.budget || 0) * ratio);
+        });
+      } else if (cat.items.length > 0) {
+        const perItem = Math.round(newBudget / cat.items.length);
+        cat.items.forEach(i => i.budget = perItem);
+      }
+      cat.budget = newBudget;
+
+      saveState();
+      renderLedgers();
+      updateKPIs();
+      showToast(`${cat.name} balance set to ₹${targetBal.toLocaleString("en-IN")}`);
+    }
+
+    // Update Totals and Donut Chart without losing input focus
+    function updateKPIs() {
+      const categories = appData.months[currentMonth];
+      let totalBudget = 0;
+      let totalSpent = 0;
+
+      const catBalances = {};
+
+      categories.forEach(cat => {
+        let catB = 0;
+        let catS = 0;
+        cat.items.forEach(i => {
+          catB += Number(i.budget || 0);
+          catS += Number(i.spent || 0);
+        });
+        cat.budget = catB;
+        totalBudget += catB;
+        totalSpent += catS;
+        catBalances[cat.id] = Math.max(0, catB - catS);
+      });
+
+      const netSurplus = (appData.salary || 0) - totalSpent;
+      const totalRemaining = Math.max(0, totalBudget - totalSpent);
+
+      document.getElementById("kpiSalary").innerText = "₹" + (appData.salary || 0).toLocaleString("en-IN");
+      document.getElementById("kpiBudget").innerText = "₹" + totalBudget.toLocaleString("en-IN");
+      document.getElementById("kpiSpent").innerText = "₹" + totalSpent.toLocaleString("en-IN");
+      document.getElementById("kpiSurplus").innerText = "₹" + netSurplus.toLocaleString("en-IN");
+      document.getElementById("kpiRemainingBudget").innerText = "₹" + totalRemaining.toLocaleString("en-IN");
+
+      const pct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
+      document.getElementById("kpiSpentPercent").innerText = pct + "% consumed";
+
+      // Update Category Badges in view
+      categories.forEach(cat => {
+        const catSpent = cat.items.reduce((s, i) => s + Number(i.spent || 0), 0);
+        const catBal = cat.budget - catSpent;
+        
+        const badgeSpent = document.getElementById(`badge-spent-${cat.id}`);
+        const badgeBal = document.getElementById(`badge-bal-${cat.id}`);
+        const badgeBudget = document.getElementById(`badge-budget-${cat.id}`);
+        const progressEl = document.getElementById(`progress-${cat.id}`);
+
+        if (badgeSpent) badgeSpent.innerText = "₹" + catSpent.toLocaleString("en-IN");
+        if (badgeBal) {
+          badgeBal.innerText = "₹" + catBal.toLocaleString("en-IN");
+          badgeBal.className = catBal < 0 ? "font-bold text-rose-400 cursor-pointer hover:underline" : "font-bold text-emerald-400 cursor-pointer hover:underline";
+        }
+        if (badgeBudget) badgeBudget.innerText = "₹" + cat.budget.toLocaleString("en-IN");
+        if (progressEl) {
+          const catPct = cat.budget > 0 ? Math.min(100, Math.round((catSpent / cat.budget) * 100)) : 0;
+          progressEl.style.width = catPct + "%";
+        }
+      });
+
+      // Update Donut Chart
+      updateDonutChart(catBalances);
+    }
+
+    function updateDonutChart(bals) {
+      const fixed = bals["fixed"] || 0;
+      const invest = bals["investments"] || 0;
+      const cards = bals["cards"] || 0;
+      const sched = bals["scheduled"] || 0;
+      const sum = fixed + invest + cards + sched;
+
+      document.getElementById("legFixed").innerText = "₹" + fixed.toLocaleString("en-IN");
+      document.getElementById("legInvest").innerText = "₹" + invest.toLocaleString("en-IN");
+      document.getElementById("legCards").innerText = "₹" + cards.toLocaleString("en-IN");
+      document.getElementById("legSched").innerText = "₹" + sched.toLocaleString("en-IN");
+
+      const cFixed = document.getElementById("pieFixed");
+      const cInvest = document.getElementById("pieInvest");
+      const cCards = document.getElementById("pieCards");
+      const cSched = document.getElementById("pieSched");
+
+      if (sum === 0) {
+        document.getElementById("pieCenterVal").innerText = "₹0";
+        cFixed.setAttribute("stroke-dasharray", `0 100`);
+        cInvest.setAttribute("stroke-dasharray", `0 100`);
+        cCards.setAttribute("stroke-dasharray", `0 100`);
+        cSched.setAttribute("stroke-dasharray", `0 100`);
+        return;
+      }
+
+      const pFixed = (fixed / sum) * 100;
+      const pInvest = (invest / sum) * 100;
+      const pCards = (cards / sum) * 100;
+      const pSched = (sched / sum) * 100;
+
+      cFixed.setAttribute("stroke-dasharray", `${pFixed} ${100 - pFixed}`);
+      cFixed.setAttribute("stroke-dashoffset", "0");
+
+      cInvest.setAttribute("stroke-dasharray", `${pInvest} ${100 - pInvest}`);
+      cInvest.setAttribute("stroke-dashoffset", `-${pFixed}`);
+
+      cCards.setAttribute("stroke-dasharray", `${pCards} ${100 - pCards}`);
+      cCards.setAttribute("stroke-dashoffset", `-${pFixed + pInvest}`);
+
+      cSched.setAttribute("stroke-dasharray", `${pSched} ${100 - pSched}`);
+      cSched.setAttribute("stroke-dashoffset", `-${pFixed + pInvest + pCards}`);
+
+      document.getElementById("pieCenterVal").innerText = "₹" + (sum >= 1000 ? Math.round(sum / 1000) + "k" : sum);
+    }
+
+    // Render Full Ledgers
+    function renderLedgers() {
+      const container = document.getElementById("ledgersContainer");
+      container.innerHTML = "";
+
+      const categories = appData.months[currentMonth];
+
+      categories.forEach(cat => {
+        if (activeFilter !== "all" && activeFilter !== cat.id) return;
+
+        const catSpent = cat.items.reduce((acc, i) => acc + Number(i.spent || 0), 0);
+        const catBal = cat.budget - catSpent;
+        const catPct = cat.budget > 0 ? Math.min(100, Math.round((catSpent / cat.budget) * 100)) : 0;
+
+        const card = document.createElement("div");
+        card.className = "bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden";
+
+        card.innerHTML = `
+          <!-- Ledger Category Header -->
+          <div class="p-4 bg-slate-900/90 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-${cat.color}-500 shadow-sm shadow-${cat.color}-500/50"></span>
+                <h2 class="text-base font-bold text-white tracking-tight">${cat.name}</h2>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">${cat.items.length} line items tracked</p>
+            </div>
+
+            <!-- Category Balance Stats (Fully Clickable / Editable) -->
+            <div class="flex items-center gap-3">
+              <!-- Editable Ledger Budget -->
+              <div class="bg-slate-800/80 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700/60 text-right cursor-pointer group transition" onclick="editLedgerBudget('${cat.id}')" title="Click to edit Ledger Budget">
+                <div class="flex items-center justify-end gap-1 text-[10px] text-slate-400 leading-tight">
+                  <span>Ledger Budget</span>
+                  <i class="fa-solid fa-pen text-[9px] text-indigo-400 group-hover:inline-block"></i>
+                </div>
+                <span class="text-xs font-semibold text-white group-hover:text-indigo-300" id="badge-budget-${cat.id}">₹${cat.budget.toLocaleString("en-IN")}</span>
+              </div>
+
+              <!-- Ledger Spent -->
+              <div class="bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700/60 text-right">
+                <span class="text-[10px] text-slate-400 block leading-tight">Ledger Spent</span>
+                <span class="text-xs font-semibold text-amber-400" id="badge-spent-${cat.id}">₹${catSpent.toLocaleString("en-IN")}</span>
+              </div>
+
+              <!-- Editable Ledger Remaining Balance -->
+              <div class="bg-slate-800/80 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700/60 text-right cursor-pointer group transition" onclick="editLedgerBalance('${cat.id}')" title="Click to edit Ledger Remaining Balance">
+                <div class="flex items-center justify-end gap-1 text-[10px] text-slate-400 leading-tight">
+                  <span>Remaining Balance</span>
+                  <i class="fa-solid fa-pen text-[9px] text-indigo-400 group-hover:inline-block"></i>
+                </div>
+                <span class="${catBal < 0 ? 'text-rose-400' : 'text-emerald-400'} font-bold text-xs group-hover:underline" id="badge-bal-${cat.id}">₹${catBal.toLocaleString("en-IN")}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Category Progress Line -->
+          <div class="w-full bg-slate-800 h-1">
+            <div id="progress-${cat.id}" class="h-1 bg-${cat.color}-500 transition-all duration-300" style="width: ${catPct}%"></div>
+          </div>
+
+          <!-- Items Table -->
+          <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-800/50 text-[11px] text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                <tr>
+                  <th class="py-2.5 px-3 w-10 text-center">Tick</th>
+                  <th class="py-2.5 px-4 min-w-[230px]">Subheading / Line Item</th>
+                  <th class="py-2.5 px-3 text-right w-28">Monthly Budget</th>
+                  <th class="py-2.5 px-3 text-right w-32">Actual Spent</th>
+                  <th class="py-2.5 px-3 text-right w-28">Item Balance</th>
+                  <th class="py-2.5 px-3 w-20 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60" id="tbody-${cat.id}">
+                ${cat.items.map(item => renderRowHTML(cat.id, item)).join("")}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bottom Action Bar -->
+          <div class="p-3 bg-slate-900/60 border-t border-slate-800 flex items-center justify-between">
+            <button onclick="openAddLineModal('${cat.id}')" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-slate-800/80 transition">
+              <i class="fa-solid fa-plus-circle"></i>
+              <span>Add Subheading</span>
+            </button>
+            <div class="flex items-center gap-2">
+              <button onclick="markAllChecked('${cat.id}')" class="text-[11px] text-slate-400 hover:text-slate-200 px-2 py-1 rounded hover:bg-slate-800">Mark Paid</button>
+              <button onclick="resetSpent('${cat.id}')" class="text-[11px] text-slate-400 hover:text-slate-200 px-2 py-1 rounded hover:bg-slate-800">Reset Spends</button>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function renderRowHTML(catId, item) {
+      const bal = item.budget - item.spent;
+      return `
+        <tr class="hover:bg-slate-800/40 transition group" id="row-${item.id}">
+          <!-- Checkbox / Tick -->
+          <td class="py-2.5 px-3 text-center">
+            <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleCheck('${catId}', '${item.id}')" class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer">
+          </td>
+
+          <!-- Item Name & Notes (Direct Click to Rename/Edit) -->
+          <td class="py-2.5 px-4">
+            <div class="flex items-center gap-1.5">
+              <span class="font-medium text-white text-xs cursor-pointer hover:text-indigo-300 ${item.checked ? 'line-through text-slate-400' : ''}" onclick="renameItem('${catId}', '${item.id}')" title="Click to rename" id="name-txt-${item.id}">${item.name}</span>
+              ${item.isSinking ? '<span class="text-[9px] bg-amber-950/80 text-amber-300 border border-amber-800/80 px-1.5 py-0.2 rounded font-mono">Vault</span>' : ''}
+              <button onclick="renameItem('${catId}', '${item.id}')" title="Edit name & description" class="text-slate-500 hover:text-indigo-400 text-[11px] p-1"><i class="fa-solid fa-pen"></i></button>
+            </div>
+            ${item.notes ? `<span class="text-[10px] text-slate-400 block">${item.notes}</span>` : ''}
+          </td>
+
+          <!-- Budget Input: Shows empty if 0 for clean typing -->
+          <td class="py-2.5 px-3 text-right">
+            <div class="flex items-center justify-end gap-1">
+              <span class="text-slate-400">₹</span>
+              <input type="number" inputmode="numeric" value="${item.budget === 0 ? '' : item.budget}" placeholder="0" oninput="handleBudgetChange('${catId}', '${item.id}', this.value)" class="w-20 bg-slate-800/60 border border-transparent hover:border-slate-700 focus:border-indigo-500 rounded px-1.5 py-1 text-right text-xs text-white font-medium focus:outline-none">
+            </div>
+          </td>
+
+          <!-- Spent Input: Numpad protected, zero scroll jumping -->
+          <td class="py-2.5 px-3 text-right">
+            <div class="flex items-center justify-end gap-1">
+              <span class="text-slate-400">₹</span>
+              <input type="number" inputmode="numeric" value="${item.spent === 0 ? '' : item.spent}" placeholder="0" oninput="handleSpentChange('${catId}', '${item.id}', this.value)" class="w-24 bg-slate-800 border border-slate-700/80 focus:border-amber-400 focus:bg-slate-800/90 rounded px-2 py-1 text-right text-xs text-amber-300 font-bold focus:outline-none shadow-inner">
+            </div>
+          </td>
+
+          <!-- Dynamic Item Balance (Clickable / Editable) -->
+          <td class="py-2.5 px-3 text-right font-semibold">
+            <div class="flex items-center justify-end gap-1 cursor-pointer group/bal" onclick="editItemBalance('${catId}', '${item.id}')" title="Click to edit balance directly">
+              <span id="bal-${item.id}" class="${bal < 0 ? 'text-rose-400' : 'text-emerald-400'} group-hover/bal:underline">₹${bal.toLocaleString("en-IN")}</span>
+              <i class="fa-solid fa-pen text-[9px] text-slate-500"></i>
+            </div>
+          </td>
+
+          <!-- Actions: Edit and Delete Buttons (Always Accessible) -->
+          <td class="py-2.5 px-3 text-center">
+            <div class="flex items-center justify-center gap-1.5">
+              <button onclick="renameItem('${catId}', '${item.id}')" title="Rename item" class="text-slate-400 hover:text-indigo-400 text-xs p-1.5 rounded hover:bg-slate-800"><i class="fa-solid fa-pen"></i></button>
+              <button onclick="deleteItem('${catId}', '${item.id}')" title="Delete this line" class="text-slate-400 hover:text-rose-400 text-xs p-1.5 rounded hover:bg-slate-800"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // Direct, Non-Destructive Event Handlers (Preserves virtual keyboard & scroll)
+    function handleSpentChange(catId, itemId, val) {
+      const categories = appData.months[currentMonth];
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      const item = cat.items.find(i => i.id === itemId);
+      if (!item) return;
+
+      const num = val === "" ? 0 : parseFloat(val);
+      item.spent = isNaN(num) ? 0 : num;
+      if (item.spent > 0) item.checked = true;
+
+      const balEl = document.getElementById(`bal-${itemId}`);
+      const bal = item.budget - item.spent;
+      if (balEl) {
+        balEl.innerText = "₹" + bal.toLocaleString("en-IN");
+        balEl.className = bal < 0 ? "text-rose-400 group-hover/bal:underline" : "text-emerald-400 group-hover/bal:underline";
+      }
+
+      saveState();
+      updateKPIs();
+    }
+
+    function handleBudgetChange(catId, itemId, val) {
+      const categories = appData.months[currentMonth];
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      const item = cat.items.find(i => i.id === itemId);
+      if (!item) return;
+
+      const num = val === "" ? 0 : parseFloat(val);
+      item.budget = isNaN(num) ? 0 : num;
+
+      const balEl = document.getElementById(`bal-${itemId}`);
+      const bal = item.budget - item.spent;
+      if (balEl) {
+        balEl.innerText = "₹" + bal.toLocaleString("en-IN");
+        balEl.className = bal < 0 ? "text-rose-400 group-hover/bal:underline" : "text-emerald-400 group-hover/bal:underline";
+      }
+
+      saveState();
+      updateKPIs();
+    }
+
+    // Direct edit of an individual item's balance
+    function editItemBalance(catId, itemId) {
+      const categories = appData.months[currentMonth];
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      const item = cat.items.find(i => i.id === itemId);
+      if (!item) return;
+
+      const currentBal = item.budget - item.spent;
+      const input = prompt(`Enter target balance for "${item.name}" (₹):`, currentBal === 0 ? "" : currentBal);
+      if (input === null) return;
+      const targetBal = parseFloat(input);
+      if (isNaN(targetBal)) {
+        alert("Please enter a valid number.");
+        return;
+      }
+
+      item.budget = item.spent + targetBal;
+      if (item.budget < 0) item.budget = 0;
+
+      saveState();
+      renderLedgers();
+      updateKPIs();
+      showToast(`Balance for "${item.name}" set to ₹${targetBal.toLocaleString("en-IN")}`);
+    }
+
+    function toggleCheck(catId, itemId) {
+      const categories = appData.months[currentMonth];
+      const cat = categories.find(c => c.id === catId);
+      const item = cat.items.find(i => i.id === itemId);
+      item.checked = !item.checked;
+      
+      if (item.checked && item.spent === 0 && item.budget > 0) {
+        item.spent = item.budget;
+        const row = document.getElementById(`row-${itemId}`);
+        if (row) {
+          const input = row.querySelector("input[placeholder='0']");
+          if (input) input.value = item.budget;
+        }
+      }
+
+      saveState();
+      renderLedgers();
+      updateKPIs();
+    }
+
+    function renameItem(catId, itemId) {
+      const categories = appData.months[currentMonth];
+      const cat = categories.find(c => c.id === catId);
+      const item = cat.items.find(i => i.id === itemId);
+      const newName = prompt("Edit Subheading Name:", item.name);
+      if (newName && newName.trim() !== "") {
+        item.name = newName.trim();
+        const newNotes = prompt("Edit Subheading Description / Notes (optional):", item.notes || "");
+        if (newNotes !== null) {
+          item.notes = newNotes.trim();
+        }
+        saveState();
+        renderLedgers();
+        showToast(`Updated to "${item.name}"`);
+      }
+    }
+
+    function deleteItem(catId, itemId) {
+      const categories = appData.months[currentMonth];
+      const cat = categories.find(c => c.id === catId);
+      const item = cat.items.find(i => i.id === itemId);
+      const itemName = item ? item.name : "line item";
+
+      if (!confirm(`Are you sure you want to delete "${itemName}" from ${cat.name}?`)) return;
+      
+      cat.items = cat.items.filter(i => i.id !== itemId);
+      saveState();
+      renderLedgers();
+      updateKPIs();
+      showToast(`"${itemName}" deleted`);
+    }
+
+    function markAllChecked(catId) {
+      const categories = appData.months[currentMonth];
+      const cat = categories.find(c => c.id === catId);
+      cat.items.forEach(i => {
+        i.checked = true;
+        if (i.spent === 0 && i.budget > 0) i.spent = i.budget;
+      });
+      saveState();
+      renderLedgers();
+      updateKPIs();
+      showToast("All items marked paid");
+    }
+
+    function resetSpent(catId) {
+      const categories = appData.months[currentMonth];
+      const cat = categories.find(c => c.id === catId);
+      cat.items.forEach(i => {
+        i.spent = 0;
+        i.checked = false;
+      });
+      saveState();
+      renderLedgers();
+      updateKPIs();
+      showToast("Spends reset for " + cat.name);
+    }
+
+    function editSalary() {
+      const val = prompt("Enter Net Monthly Salary (₹):", appData.salary === 0 ? "" : appData.salary);
+      if (val !== null) {
+        const parsed = parseFloat(val);
+        appData.salary = isNaN(parsed) ? 0 : parsed;
+        saveState();
+        updateKPIs();
+        showToast("Salary set to ₹" + appData.salary.toLocaleString("en-IN"));
+      }
+    }
+
+    // Modal: Add Line / Subheading
+    let targetCatForNew = "fixed";
+    function openAddLineModal(catId) {
+      targetCatForNew = catId || "fixed";
+      document.getElementById("newLineCategory").value = targetCatForNew;
+      document.getElementById("newLineName").value = "";
+      document.getElementById("newLineBudget").value = "";
+      document.getElementById("newLineNotes").value = "";
+      document.getElementById("newLineSinking").checked = targetCatForNew === "scheduled";
+      document.getElementById("addLineModal").classList.remove("hidden");
+    }
+
+    function closeAddLineModal() {
+      document.getElementById("addLineModal").classList.add("hidden");
+    }
+
+    function confirmAddLine() {
+      const name = document.getElementById("newLineName").value.trim();
+      const budget = parseFloat(document.getElementById("newLineBudget").value) || 0;
+      const catId = document.getElementById("newLineCategory").value;
+      const notes = document.getElementById("newLineNotes").value.trim();
+      const isSinking = document.getElementById("newLineSinking").checked;
+
+      if (!name) {
+        alert("Please enter a name for the subheading.");
+        return;
+      }
+
+      const categories = appData.months[currentMonth];
+      const cat = categories.find(c => c.id === catId);
+      if (cat) {
+        cat.items.push({
+          id: "custom_" + Date.now(),
+          name: name,
+          budget: budget,
+          spent: 0,
+          checked: false,
+          notes: notes,
+          isSinking: isSinking
+        });
+
+        saveState();
+        closeAddLineModal();
+        renderLedgers();
+        updateKPIs();
+        showToast(`Added "${name}" to ${cat.name}`);
+      }
+    }
+
+    // Sync Budgets Till Year-End
+    function syncFutureMonths() {
+      if (!confirm(`Apply the current ${currentMonth} budget structure and subheadings to all remaining months of the year?`)) return;
+      
+      const currentIdx = MONTHS.indexOf(currentMonth);
+      const snapshot = JSON.parse(JSON.stringify(appData.months[currentMonth]));
+
+      for (let i = currentIdx + 1; i < MONTHS.length; i++) {
+        const nextMonth = MONTHS[i];
+        const freshCopy = JSON.parse(JSON.stringify(snapshot));
+        freshCopy.forEach(cat => {
+          cat.items.forEach(item => {
+            item.spent = 0;
+            item.checked = false;
+          });
+        });
+        appData.months[nextMonth] = freshCopy;
+      }
+
+      saveState();
+      showToast("Synced structure through December!");
+    }
+
+    // Notification Engine (Play Store Compliant)
+    function openNotificationModal() {
+      document.getElementById("notificationModal").classList.remove("hidden");
+    }
+
+    function closeNotificationModal() {
+      document.getElementById("notificationModal").classList.add("hidden");
+    }
+
+    function handleProcessNotification() {
+      const input = document.getElementById("notifInput");
+      const text = input.value.trim();
+      if (!text) return;
+      simulateAndParse("Manual Notification", text);
+      input.value = "";
+    }
+
+    function simulateAndParse(source, text) {
+      const regex = /(?:(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{1,2})?)|([\d,]+(?:\.\d{1,2})?)\s*(?:debited|spent|paid|credited))/i;
+      const match = text.match(regex);
+      if (!match) {
+        alert("Could not detect currency amount in notification.");
+        return;
+      }
+
+      const rawAmount = match[1] || match[2];
+      const amount = parseFloat(rawAmount.replace(/,/g, ''));
+      const lower = text.toLowerCase();
+
+      // Check Salary
+      if (lower.includes("salary") || (lower.includes("credited") && amount >= 50000)) {
+        appData.salary = amount;
+        saveState();
+        updateKPIs();
+        auditHistory.unshift({
+          id: Date.now(),
+          source: source,
+          item: "Month's Salary",
+          category: "Income",
+          amount: amount,
+          text: text,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+        saveState();
+        showToast("✓ Salary updated to ₹" + amount.toLocaleString("en-IN"));
+        closeNotificationModal();
+        return;
+      }
+
+      // Keyword matchers
+      let matchedItemName = null;
+      if (lower.includes("grocery") || lower.includes("veggie") || lower.includes("fruit") || lower.includes("provision") || lower.includes("supermarket") || lower.includes("nature basket")) {
+        matchedItemName = "Grocery";
+      } else if (lower.includes("broadband") || lower.includes("fiber") || lower.includes("airtel") || lower.includes("jio") || lower.includes("mobile")) {
+        matchedItemName = "Broadband/ Internet and Mobile bill";
+      } else if (lower.includes("netflix") || lower.includes("prime") || lower.includes("youtube") || lower.includes("drive") || lower.includes("subscription")) {
+        matchedItemName = "Google Drive + YouTube + Netflix + Prime etc Subscriptions";
+      } else if (lower.includes("fuel") || lower.includes("petrol") || lower.includes("diesel") || lower.includes("indian oil") || lower.includes("hpcl")) {
+        matchedItemName = "Fuel";
+      } else if (lower.includes("movie") || lower.includes("cinema") || lower.includes("pvr") || lower.includes("inox") || lower.includes("dinner") || lower.includes("restaurant") || lower.includes("swiggy") || lower.includes("zomato") || lower.includes("outing") || lower.includes("shopping") || lower.includes("amazon") || lower.includes("flipkart")) {
+        matchedItemName = "Entertainment and Shopping";
+      } else if (lower.includes("insurance") || lower.includes("lic") || lower.includes("term") || lower.includes("health")) {
+        matchedItemName = "Premium Health/ Term Insurance";
+      } else if (lower.includes("maid") || lower.includes("salary") || lower.includes("domestic")) {
+        matchedItemName = "Maid/ Domestic Help Salary";
+      } else if (lower.includes("emi") || lower.includes("loan")) {
+        matchedItemName = "Monthly EMI";
+      } else if (lower.includes("school") || lower.includes("fees") || lower.includes("tuition")) {
+        matchedItemName = "Children School Fees";
+      } else if (lower.includes("car service") || lower.includes("servicing")) {
+        matchedItemName = "Car Servicing";
+      } else if (lower.includes("electricity") || lower.includes("power") || lower.includes("bescom")) {
+        matchedItemName = "Electricity";
+      } else if (lower.includes("maintenance") || lower.includes("repair")) {
+        matchedItemName = "House Maintenance";
+      } else if (lower.includes("holiday") || lower.includes("vacation") || lower.includes("tour")) {
+        matchedItemName = "Holidays";
+      } else if (lower.includes("sip") || lower.includes("mutual fund")) {
+        matchedItemName = "SIP/ Mutual Funds";
+      } else if (lower.includes("rd") || lower.includes("recurring")) {
+        matchedItemName = "Recurring Deposits";
+      }
+
+      const categories = appData.months[currentMonth];
+      let found = false;
+
+      if (matchedItemName) {
+        for (const cat of categories) {
+          const item = cat.items.find(i => i.name.toLowerCase().includes(matchedItemName.toLowerCase()));
+          if (item) {
+            item.spent = (Number(item.spent) || 0) + amount;
+            item.checked = true;
+            found = true;
+
+            auditHistory.unshift({
+              id: Date.now(),
+              source: source,
+              item: item.name,
+              category: cat.name,
+              amount: amount,
+              text: text,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+
+            saveState();
+            renderLedgers();
+            updateKPIs();
+            showToast(`✓ Deducted ₹${amount.toLocaleString("en-IN")} under ${item.name}`);
+            closeNotificationModal();
+            break;
+          }
+        }
+      }
+
+      if (!found) {
+        alert("Alert received with amount ₹" + amount + ", but no matching subhead was found. You can add it manually.");
+      }
+    }
+
+    // Modal: Explosive View / Audit Log
+    function openAuditModal() {
+      const container = document.getElementById("auditList");
+      container.innerHTML = "";
+
+      if (auditHistory.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-500 text-xs">No auto-deductions or logged events yet.</div>`;
+      } else {
+        auditHistory.forEach(a => {
+          const row = document.createElement("div");
+          row.className = "p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 mb-2 flex items-center justify-between text-xs";
+          row.innerHTML = `
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-white">${a.item}</span>
+                <span class="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">${a.source}</span>
+                <span class="text-[10px] text-slate-400">${a.time}</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 italic">"${a.text}"</p>
+            </div>
+            <div class="text-right shrink-0 ml-3">
+              <span class="text-xs font-bold text-amber-400">₹${a.amount.toLocaleString("en-IN")}</span>
+            </div>
+          `;
+          container.appendChild(row);
+        });
+      }
+
+      document.getElementById("auditModal").classList.remove("hidden");
+    }
+
+    function closeAuditModal() {
+      document.getElementById("auditModal").classList.add("hidden");
+    }
+
+    function clearAuditLog() {
+      if (!confirm("Clear all recorded notification audit history?")) return;
+      auditHistory = [];
+      saveState();
+      openAuditModal();
+      showToast("Audit log cleared");
+    }
+
+    // Initialize application on load
+    window.addEventListener("DOMContentLoaded", () => {
+      initData();
+      renderMonthTabs();
+      renderLedgers();
+      updateKPIs();
+    });
+  </script>
+</body>
+</html>
