@@ -1,15 +1,22 @@
 {
-  "name": "Smart Budget Ledger",
-  "short_name": "Ledger",
+  "name": "Monthly Budget & Expense Ledger",
+  "short_name": "SmartLedger",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#020617",
   "theme_color": "#0f172a",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/5501/5501375.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5501/5501375.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
