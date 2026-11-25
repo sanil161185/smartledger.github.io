@@ -1,26 +1,33 @@
-"icons": [
+{
+  "id": "/smartledger/",
+  "name": "SmartLedger: Monthly Expense Tracker",
+  "short_name": "SmartLedger",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "dir": "auto",
+  "lang": "en",
+  "description": "Smart Ledger is a lightweight, zero-tracking personal finance and multi-head budget tracker designed for practical and disciplined household money management. Built as an offline-first Progressive Web App (PWA), it gives you complete control over your cash flow without linking bank credentials or exposing private transaction data.",
+  "categories": [
+    "finance",
+    "utilities",
+    "lifestyle"
+  ],
+  "icons": [
     {
-      "src": "./icon.png",
-      "sizes": "192x192",
+      "src": "https://cdn-icons-png.flaticon.com/512/5501/5501375.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./icon.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     },
     {
       "src": "./icon.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./icon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ]
+}
